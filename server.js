@@ -17,8 +17,7 @@ app.use(express.json());
 // ===============================
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  family: 4   // 👈 FORCE IPv4 (THIS FIXES ENETUNREACH)
+  ssl: { rejectUnauthorized: false }
 });
 
 // ===============================
