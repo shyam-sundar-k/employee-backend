@@ -5,6 +5,17 @@ const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
 
+app.get("/db-test", async (req, res) => {
+  try {
+    const r = await pool.query("SELECT 1 as ok");
+    res.json(r.rows);
+  } catch (e) {
+    console.error("DB TEST ERROR:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
