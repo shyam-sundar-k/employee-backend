@@ -40,8 +40,9 @@ app.get("/test-db", async (req, res) => {
 app.get("/employees", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM employees ORDER BY created_at DESC"
-    );
+  "SELECT * FROM employees ORDER BY id DESC"
+);
+
     res.json(result.rows);
   } catch (err) {
     console.error(err);
