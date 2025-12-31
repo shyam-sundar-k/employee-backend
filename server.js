@@ -2,100 +2,78 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
-const { Pool } = require("pg");
+
+// IMPORTANT: node-fetch v2 syntax
+const fetch = (...args) =>
+  import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// ---------- DATABASE ----------
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+// ENV CHECK (VERY IMPORTANT)
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
-// ---------- DB TEST ----------
-app.get("/db-test", async (req, res) => {
-  try {
-    const r = await pool.query("SELECT 1 as ok");
-    res.json(r.rows);
-  } catch (e) {
-    console.error("DB TEST ERROR:", e);
-    res.status(500).json({ error: e.message });
-  }
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error("❌ Missing Supabase environment variables");
+}
+
+// ---------- ROOT TEST ----------
+app.get("/", (req, res) => {
+  res.send("Backend is running");
 });
 
 // ---------- GET EMPLOYEES ----------
 app.get("/employees", async (req, res) => {
   try {
-    const result = await pool.query(
-      "SELECT * FROM public.employees ORDER BY id DESC"
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/employees?order=id.desc`,
+      {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`
+        }
+      }
     );
-    res.json(result.rows);
+
+    const data = await response.json();
+    res.json(data);
   } catch (err) {
-    console.error("GET EMPLOYEES ERROR:", err);
+    console.error("GET /employees ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 // ---------- ADD EMPLOYEE ----------
 app.post("/employees", async (req, res) => {
-  const {
-    name,
-    address,
-    mobile,
-    father,
-    mother,
-    pan,
-    aadhar,
-    doj
-  } = req.body;
-
-  if (!name) {
-    return res.status(400).json({ error: "Name required" });
-  }
-
   try {
-    const insert = await pool.query(
-      `INSERT INTO public.employees
-      (name, address, mobile, father, mother, pan, aadhar, doj)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-      RETURNING id`,
-      [name, address, mobile, father, mother, pan, aadhar, doj]
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/employees`,
+      {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation"
+        },
+        body: JSON.stringify(req.body)
+      }
     );
 
-    const id = insert.rows[0].id;
-    const empId = "VM-" + String(id).padStart(3, "0");
-
-    await pool.query(
-      "UPDATE public.employees SET emp_id=$1 WHERE id=$2",
-      [empId, id]
-    );
-
-    res.json({ emp_id: empId });
+    const data = await response.json();
+    res.json(data);
   } catch (err) {
-    console.error("ADD EMPLOYEE ERROR:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ---------- DELETE ----------
-app.delete("/employees/:empId", async (req, res) => {
-  try {
-    await pool.query(
-      "DELETE FROM public.employees WHERE emp_id=$1",
-      [req.params.empId]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error("DELETE ERROR:", err);
+    console.error("POST /employees ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 // ---------- START SERVER ----------
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
